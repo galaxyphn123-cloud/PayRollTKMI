@@ -2720,7 +2720,7 @@ function tests(){
  t('Pembayaran kompensasi mengurangi sisa',comBal(S.contrib[0])===600);
  S.set.disiplin.perKejadian=1000;S.att.push({emp:'PG0001',per:S.period,st:'TERLAMBAT',telat:10});t('Potongan disiplin = kejadian terlambat × parameter',discip('PG0001').val===1000);
  t('Normalisasi jabatan master (Kepala Madrasah → Kepala TK; Sarana Prasarana → Sarpras; SDM)',normJab('Kepala Madrasah','TK')==='Kepala TK'&&normJab('Wakil Kepala Bidang Sarana Prasarana','MI')==='Waka Sarpras'&&pk('SDM')==='SDM');
- S.emp[0].email='a@b.co';t('Draf email .eml: penerima, X-Unsent, lampiran slip',(x=>x.includes('To: a@b.co')&&x.includes('X-Unsent: 1')&&x.includes('attachment; filename="Slip_PG0001_'))(emlOf(calcEmp(E('PG0001')))));
+ S.emp[0].email='a@b.co';t('Draf email .eml: penerima, X-Unsent, lampiran slip PDF',(x=>x.includes('To: a@b.co')&&x.includes('X-Unsent: 1')&&x.includes('application/pdf')&&x.includes('attachment; filename="Slip_PG0001_')&&x.includes('.pdf"'))(emlBuild(calcEmp(E('PG0001')),'QUJD')));
  t('Gate: BELUM SIAP jika belum lengkap',ready()===false);
  S=bak;modal('<h3>Hasil uji mesin</h3>'+T(['Uji','Hasil'],res.map(r=>[r[0],bd(r[1]?'Lulus':'Gagal')])));
 }
@@ -3366,7 +3366,8 @@ async function slipPdf(p){const e=E(p.emp),sl=S.set.slip,g=n=>sum(p.c.filter(x=>
  return {blob:new Blob(parts,{type:'application/pdf'}),overflow:y>H-24}}
 const okMail=m=>/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(String(m||'').trim());
 const b64b=async bl=>{const u=new Uint8Array(await bl.arrayBuffer());let s='';for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(s).replace(/.{76}/g,'$&\r\n')};
-async function emlOf(p){const e=E(p.emp),sb=`Slip Remunerasi ${perLbl(p.per)} - ${e.nama}`,B='=_slip_'+Date.now().toString(36),nm=`Slip_${e.id}_${p.per}.pdf`,body=`Assalamu'alaikum ${e.nama},\r\n\r\nTerlampir slip remunerasi periode ${perLbl(p.per)} dalam format PDF.\r\nJika ada pertanyaan, silakan hubungi Bendahara.\r\n\r\nWassalamu'alaikum,\r\n${S.set.slip.yayasan}`,pdf=await b64b((await slipPdf(p)).blob);
+async function emlOf(p){return emlBuild(p,await b64b((await slipPdf(p)).blob))}
+function emlBuild(p,pdf){const e=E(p.emp),sb=`Slip Remunerasi ${perLbl(p.per)} - ${e.nama}`,B='=_slip_'+Date.now().toString(36),nm=`Slip_${e.id}_${p.per}.pdf`,body=`Assalamu'alaikum ${e.nama},\r\n\r\nTerlampir slip remunerasi periode ${perLbl(p.per)} dalam format PDF.\r\nJika ada pertanyaan, silakan hubungi Bendahara.\r\n\r\nWassalamu'alaikum,\r\n${S.set.slip.yayasan}`;
  return ['To: '+e.email.trim(),'Subject: =?UTF-8?B?'+b64(sb).replace(/\r\n/g,'')+'?=','X-Unsent: 1','MIME-Version: 1.0','Content-Type: multipart/mixed; boundary="'+B+'"','','--'+B,'Content-Type: text/plain; charset=utf-8','Content-Transfer-Encoding: base64','',b64(body),'--'+B,`Content-Type: application/pdf; name="${nm}"`,`Content-Disposition: attachment; filename="${nm}"`,'Content-Transfer-Encoding: base64','',pdf,'--'+B+'--',''].join('\r\n')}
 const payOf=(id,noMail)=>{const p=S.pay.find(x=>x.emp===id&&x.per===S.period),e=E(id);if(!p)return toast('Hitung payroll dulu','r'),null;if(!noMail){if(!e.email)return toast(e.nama+': email belum diisi di Master Pegawai','r'),null;if(!okMail(e.email))return toast(e.nama+': format email tidak valid ('+e.email+')','r'),null}return p};
 const sendOk=()=>S.final[S.period]||confirm('Payroll periode '+S.period+' belum FINAL. Slip yang dikirim bisa berubah. Tetap lanjut?');
