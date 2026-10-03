@@ -2591,8 +2591,13 @@ async function imp(fs){
   const hadir=PR.filter(r=>/hadir|terlambat/i.test(String(pkx(r,'status')))&&!/tidak/i.test(String(pkx(r,'status')))).length;
   const rv=fn=>{for(const r of rk){const i=r.findIndex(c=>fn(String(c).toLowerCase().trim()));if(i>=0){const v=r.slice(i+1).find(c=>c!==''&&!isNaN(parseFloat(c)));if(v!==undefined)return num(v)}}return null};
   const chk=(lbl,val,alts)=>{if(val!==null&&!alts.some(a=>Math.abs(a-val)<.01))iss('Rekap ≠ Detail',`${lbl}: rekap ${val}, detail ${alts.map(a=>+a.toFixed(2)).join(' / ')}`,id,per)};
-  const rkMen=rv(x=>x.includes('jp mengajar')&&x.includes('dibayar')),rkKed=rv(x=>x.includes('jp kedinasan')&&x.includes('dibayar')),rkAbs={izin:rv(x=>x==='izin'),sakit:rv(x=>x==='sakit'),alpha:rv(x=>x==='alpha'||x==='alpa')};chk('Hadir',rv(x=>x==='hadir'||x==='jumlah hadir'),[hadir]);
-  S.subs.push({sid,emp:id,per,file:f.name,at:new Date().toISOString().slice(0,16).replace('T',' '),rkMen,rkKed,rkAbs});
+  let rkMen=rv(x=>x.includes('jp mengajar')&&x.includes('dibayar')),rkKed=rv(x=>x.includes('jp kedinasan')&&x.includes('dibayar'));const rkAbs={izin:rv(x=>x==='izin'),sakit:rv(x=>x==='sakit'),alpha:rv(x=>x==='alpha'||x==='alpa')};chk('Hadir',rv(x=>x==='hadir'||x==='jumlah hadir'),[hadir]);
+  let rkDerived=false;if(rkMen===null&&rkKed===null){const tK=rv(x=>x==='jp diklaim'||x==='jp klaim'),tV=rv(x=>x==='jp valid');
+   if(tK===null)iss('Rekap tidak terbaca','Sheet Rekap tidak memuat baris "JP Mengajar Dibayar" / "JP Kedinasan Dibayar" maupun total "JP Diklaim"; JP Rekap Awal kosong (isi lewat Penyesuaian JP Rekap manual)',id,per);
+   else if(Math.abs(tK-(kMen+kKed))<.01){rkMen=r2(kMen);rkKed=r2(kKed);rkDerived=true;iss('Rekap per jenis diturunkan',`Sheet Rekap hanya memuat total (JP Diklaim ${tK}${tV!==null?', JP Valid '+tV:''}) tanpa pemisahan mengajar/kedinasan. Total itu sama dengan jumlah detail (mengajar ${r2(kMen)} + kedinasan ${r2(kKed)}), sehingga JP Rekap Awal per jenis diisi dari detail. Periksa lalu tandai diperbaiki.`,id,per)}
+   else iss('Rekap ≠ Detail',`Sheet Rekap hanya memuat total JP Diklaim ${tK}, sedangkan detail ${r2(kMen+kKed)} (mengajar ${r2(kMen)} + kedinasan ${r2(kKed)}); JP Rekap Awal per jenis tidak dapat ditentukan (isi lewat Penyesuaian JP Rekap manual)`,id,per);
+   if(tV!==null)chk('JP Valid (total)',tV,[vMen+vKed])}
+  S.subs.push({sid,emp:id,per,file:f.name,at:new Date().toISOString().slice(0,16).replace('T',' '),rkMen,rkKed,rkAbs,rkDerived});
   log('Import','Impor setoran',sid,'',f.name,'');n++;
  }
  save();render();toast(n+' dari '+fs.length+' file diimpor',n<fs.length?'r':'');
